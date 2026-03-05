@@ -23,9 +23,12 @@ var (
 // Walk widget references (set during window creation)
 var (
 	mw        *walk.MainWindow
-	cbExp     *walk.ComboBox
+	rbCata    *walk.RadioButton
+	rbMop     *walk.RadioButton
+	rbVanilla *walk.RadioButton
 	lePath    *walk.LineEdit
-	cbRL      *walk.ComboBox
+	leRL      *walk.LineEdit
+	btnRLPick *walk.PushButton
 	chkClr    *walk.CheckBox
 	chkSetRL  *walk.CheckBox
 	btnUpdate *walk.PushButton
@@ -71,11 +74,17 @@ func appendLog(line string) {
 // ── Shell browse-for-folder (syscall, avoids lxn/win struct layout concerns) ─
 
 var (
-	shell32dll        = syscall.NewLazyDLL("shell32.dll")
-	ole32dll          = syscall.NewLazyDLL("ole32.dll")
-	_SHBrowseForFolder = shell32dll.NewProc("SHBrowseForFolderW")
+	shell32dll          = syscall.NewLazyDLL("shell32.dll")
+	ole32dll            = syscall.NewLazyDLL("ole32.dll")
+	user32dll           = syscall.NewLazyDLL("user32.dll")
+	_SHBrowseForFolder  = shell32dll.NewProc("SHBrowseForFolderW")
 	_SHGetPathFromIDList = shell32dll.NewProc("SHGetPathFromIDListW")
-	_CoTaskMemFree     = ole32dll.NewProc("CoTaskMemFree")
+	_CoTaskMemFree      = ole32dll.NewProc("CoTaskMemFree")
+	_CreatePopupMenu    = user32dll.NewProc("CreatePopupMenu")
+	_AppendMenuW        = user32dll.NewProc("AppendMenuW")
+	_DestroyMenu        = user32dll.NewProc("DestroyMenu")
+	_TrackPopupMenu     = user32dll.NewProc("TrackPopupMenu")
+	_GetWindowRect      = user32dll.NewProc("GetWindowRect")
 )
 
 type browseInfo struct {
@@ -92,6 +101,13 @@ type browseInfo struct {
 const (
 	bifReturnOnlyFSDirs = 0x0001
 	bifNewDialogStyle   = 0x0040
+
+	// TrackPopupMenu flags
+	tpmLeftButton = 0x0000
+	tpmReturnCmd  = 0x0100
+
+	// AppendMenu flags
+	mfString = 0x00000000
 
 	// MessageBox flags (used by main.go)
 	MB_OK        uint32 = 0x0000
@@ -124,15 +140,25 @@ func msgBox(_ uintptr, title, text string, flags uint32) {
 	walk.MsgBox(mw, title, text, walk.MsgBoxStyle(flags))
 }
 
+// ── currentExpansion reads the checked RadioButton ───────────────────────────
+
+func currentExpansion() string {
+	if rbCata != nil && rbCata.Checked() {
+		return "Cata"
+	}
+	if rbMop != nil && rbMop.Checked() {
+		return "Mop"
+	}
+	if rbVanilla != nil && rbVanilla.Checked() {
+		return "Vanilla"
+	}
+	return userCfg.Expansion
+}
+
 // ── Button handlers ───────────────────────────────────────────────────────────
 
-func onExpansionChanged() {
-	if idx := cbExp.CurrentIndex(); idx >= 0 {
-		exps := appCfg.AppSettings.ExpansionSelectionSettings.AvailableExpansions
-		if idx < len(exps) {
-			userCfg.Expansion = exps[idx]
-		}
-	}
+func onExpansionRadio(exp string) {
+	userCfg.Expansion = exp
 	saveUserSettings()
 	lePath.SetText(gamePath())
 }
@@ -147,6 +173,44 @@ func onBrowse() {
 	saveUserSettings()
 }
 
+// onPickRealmlist shows a native Win32 popup menu with preconfigured realmlists.
+// Uses TrackPopupMenu directly so it works correctly under Wine.
+func onPickRealmlist() {
+	rls := appCfg.AppSettings.Realmlists
+	if len(rls) == 0 {
+		return
+	}
+
+	hMenu, _, _ := _CreatePopupMenu.Call()
+	if hMenu == 0 {
+		return
+	}
+	defer _DestroyMenu.Call(hMenu)
+
+	for i, rl := range rls {
+		rlPtr, _ := syscall.UTF16PtrFromString(rl)
+		_AppendMenuW.Call(hMenu, mfString, uintptr(i+1), uintptr(unsafe.Pointer(rlPtr)))
+	}
+
+	// Position the menu below the pick button
+	type rect32 struct{ Left, Top, Right, Bottom int32 }
+	var r rect32
+	_GetWindowRect.Call(uintptr(btnRLPick.Handle()), uintptr(unsafe.Pointer(&r)))
+
+	cmd, _, _ := _TrackPopupMenu.Call(
+		hMenu,
+		tpmReturnCmd|tpmLeftButton,
+		uintptr(r.Left),
+		uintptr(r.Bottom),
+		0,
+		uintptr(mw.Handle()),
+		0,
+	)
+	if cmd > 0 && int(cmd) <= len(rls) {
+		leRL.SetText(rls[cmd-1])
+	}
+}
+
 func onUpdate() {
 	// If already running — cancel
 	if atomic.LoadInt32(&dlRunning) == 1 {
@@ -156,14 +220,9 @@ func onUpdate() {
 	}
 
 	// Read current control values
-	if idx := cbExp.CurrentIndex(); idx >= 0 {
-		exps := appCfg.AppSettings.ExpansionSelectionSettings.AvailableExpansions
-		if idx < len(exps) {
-			userCfg.Expansion = exps[idx]
-		}
-	}
+	userCfg.Expansion = currentExpansion()
 	setGamePath(lePath.Text())
-	userCfg.Realmlist = cbRL.Text()
+	userCfg.Realmlist = leRL.Text()
 	userCfg.ClearCache = chkClr.Checked()
 	userCfg.SkipRealmlistSetup = !chkSetRL.Checked()
 	saveUserSettings()
@@ -214,14 +273,9 @@ func onUpdate() {
 }
 
 func onPlay() {
-	if idx := cbExp.CurrentIndex(); idx >= 0 {
-		exps := appCfg.AppSettings.ExpansionSelectionSettings.AvailableExpansions
-		if idx < len(exps) {
-			userCfg.Expansion = exps[idx]
-		}
-	}
+	userCfg.Expansion = currentExpansion()
 	setGamePath(lePath.Text())
-	userCfg.Realmlist = cbRL.Text()
+	userCfg.Realmlist = leRL.Text()
 	userCfg.ClearCache = chkClr.Checked()
 	userCfg.SkipRealmlistSetup = !chkSetRL.Checked()
 	saveUserSettings()
@@ -231,27 +285,6 @@ func onPlay() {
 // ── Window ───────────────────────────────────────────────────────────────────
 
 func runGUI() {
-	exps := appCfg.AppSettings.ExpansionSelectionSettings.AvailableExpansions
-	rls := appCfg.AppSettings.Realmlists
-
-	// Find saved indices
-	expIdx := 0
-	for i, e := range exps {
-		if e == userCfg.Expansion {
-			expIdx = i
-			break
-		}
-	}
-	rlIdx := 0
-	rlInList := false
-	for i, r := range rls {
-		if r == userCfg.Realmlist {
-			rlIdx = i
-			rlInList = true
-			break
-		}
-	}
-
 	if err := (MainWindow{
 		AssignTo: &mw,
 		Title:    "twinlauncher",
@@ -263,11 +296,20 @@ func runGUI() {
 				Layout: HBox{MarginsZero: true, Spacing: 6},
 				Children: []Widget{
 					Label{Text: "Expansion:", MinSize: Size{Width: 80}},
-					ComboBox{
-						AssignTo:              &cbExp,
-						Model:                 exps,
-						CurrentIndex:          expIdx,
-						OnCurrentIndexChanged: onExpansionChanged,
+					RadioButton{
+						AssignTo:  &rbCata,
+						Text:      "Cata",
+						OnClicked: func() { onExpansionRadio("Cata") },
+					},
+					RadioButton{
+						AssignTo:  &rbMop,
+						Text:      "Mop",
+						OnClicked: func() { onExpansionRadio("Mop") },
+					},
+					RadioButton{
+						AssignTo:  &rbVanilla,
+						Text:      "Vanilla",
+						OnClicked: func() { onExpansionRadio("Vanilla") },
 					},
 					HSpacer{},
 				},
@@ -294,13 +336,15 @@ func runGUI() {
 				Layout: HBox{MarginsZero: true, Spacing: 6},
 				Children: []Widget{
 					Label{Text: "Realmlist:", MinSize: Size{Width: 80}},
-					ComboBox{
-						AssignTo:     &cbRL,
-						Editable:     true,
-						Model:        rls,
-						CurrentIndex: rlIdx,
+					LineEdit{
+						AssignTo: &leRL,
 					},
-					HSpacer{},
+					PushButton{
+						AssignTo:  &btnRLPick,
+						Text:      "▼",
+						MaxSize:   Size{Width: 32},
+						OnClicked: onPickRealmlist,
+					},
 				},
 			},
 			CheckBox{
@@ -348,9 +392,18 @@ func runGUI() {
 		panic(err)
 	}
 
-	if !rlInList && userCfg.Realmlist != "" {
-		cbRL.SetText(userCfg.Realmlist)
+	// Set initial expansion radio button
+	switch userCfg.Expansion {
+	case "Mop":
+		rbMop.SetChecked(true)
+	case "Vanilla":
+		rbVanilla.SetChecked(true)
+	default:
+		rbCata.SetChecked(true)
 	}
+
+	// Set realmlist text
+	leRL.SetText(userCfg.Realmlist)
 
 	mw.Run()
 }
