@@ -2,7 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A lightweight Windows launcher for the [TwinStar](https://twinstar-wow.com) World of Warcraft private server, written in Go. Designed to replace the original .NET/WPF launcher with no .NET dependency — runs cleanly under Wine on Linux and macOS.
+A lightweight Windows launcher for the [TwinStar](https://twinstar-wow.com) World of Warcraft private server, written in Go. Designed to replace the original .NET/WPF launcher with no .NET dependency.
+
+Runs cleanly under Wine on Linux and macOS which was the main motivation for this launcher.
 
 ## What it does
 
