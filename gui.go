@@ -163,12 +163,7 @@ func onUpdate() {
 		}
 	}
 	setGamePath(lePath.Text())
-	if idx := cbRL.CurrentIndex(); idx >= 0 {
-		rls := appCfg.AppSettings.Realmlists
-		if idx < len(rls) {
-			userCfg.Realmlist = rls[idx]
-		}
-	}
+	userCfg.Realmlist = cbRL.Text()
 	userCfg.ClearCache = chkClr.Checked()
 	userCfg.SkipRealmlistSetup = !chkSetRL.Checked()
 	saveUserSettings()
@@ -226,12 +221,7 @@ func onPlay() {
 		}
 	}
 	setGamePath(lePath.Text())
-	if idx := cbRL.CurrentIndex(); idx >= 0 {
-		rls := appCfg.AppSettings.Realmlists
-		if idx < len(rls) {
-			userCfg.Realmlist = rls[idx]
-		}
-	}
+	userCfg.Realmlist = cbRL.Text()
 	userCfg.ClearCache = chkClr.Checked()
 	userCfg.SkipRealmlistSetup = !chkSetRL.Checked()
 	saveUserSettings()
@@ -253,16 +243,18 @@ func runGUI() {
 		}
 	}
 	rlIdx := 0
+	rlInList := false
 	for i, r := range rls {
 		if r == userCfg.Realmlist {
 			rlIdx = i
+			rlInList = true
 			break
 		}
 	}
 
 	if err := (MainWindow{
 		AssignTo: &mw,
-		Title:    "TwinStar Launcher",
+		Title:    "twinlauncher",
 		MinSize:  Size{Width: 440, Height: 400},
 		Size:     Size{Width: 440, Height: 400},
 		Layout:   VBox{Margins: Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}, Spacing: 6},
@@ -304,6 +296,7 @@ func runGUI() {
 					Label{Text: "Realmlist:", MinSize: Size{Width: 80}},
 					ComboBox{
 						AssignTo:     &cbRL,
+						Editable:     true,
 						Model:        rls,
 						CurrentIndex: rlIdx,
 					},
@@ -353,6 +346,10 @@ func runGUI() {
 		},
 	}).Create(); err != nil {
 		panic(err)
+	}
+
+	if !rlInList && userCfg.Realmlist != "" {
+		cbRL.SetText(userCfg.Realmlist)
 	}
 
 	mw.Run()
