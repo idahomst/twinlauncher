@@ -16,6 +16,9 @@ Runs cleanly under Wine on Linux and macOS which was the main motivation for thi
 
 Settings are stored in `twinlauncher_settings.json` next to the exe.
 
+## Screenshot
+![alt text](https://github.com/idahomst/twinlauncher/blob/main/twinlauncher.png?raw=true)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
