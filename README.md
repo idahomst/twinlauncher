@@ -1,4 +1,4 @@
-# TwinStar Launcher
+# twinlauncher - the unofficial [TwinStar Launcher](https://twinstar-wow.com/launcher/latest.zip) alternative
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -17,7 +17,7 @@ Runs cleanly under Wine on Linux and macOS which was the main motivation for thi
 Settings are stored in `twinlauncher_settings.json` next to the exe.
 
 ## Screenshot
-![alt text](https://github.com/idahomst/twinlauncher/blob/main/twinlauncher.png?raw=true)
+![twinlauncher screenshot](https://github.com/idahomst/twinlauncher/blob/main/twinlauncher.png?raw=true)
 
 ## License
 
