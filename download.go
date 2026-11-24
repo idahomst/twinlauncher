@@ -463,6 +463,9 @@ func localPath(base, rel string) (string, error) {
 // runUpdate checks and downloads everything for one expansion. mopLocale is
 // the selected MoP game language (ignored for other expansions).
 func runUpdate(ctx context.Context, expansion, gameDir, mopLocale string) error {
+	if err := checkClientVersion(gameDir, expansion); err != nil {
+		return err
+	}
 	switch expansion {
 	case "Cata":
 		return updateCata(ctx, gameDir)

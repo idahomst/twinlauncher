@@ -9,6 +9,7 @@ Runs cleanly under Wine on Linux and macOS which was the main motivation for thi
 ## What it does
 
 - Selects the WoW expansion: **Cataclysm**, **Mists of Pandaria**, or **Vanilla**
+- Refuses to update a folder that holds another expansion's client (version check like the original)
 - Downloads and updates game files from the TwinStar CDN (resumable, with progress, picks up partial downloads of the original launcher)
 - Lets you choose the game language for Mists of Pandaria (same list as TwinStar Launcher 1.0.3)
 - Patches `Config.wtf` and `realmlist.wtf` with the correct realmlist before launching

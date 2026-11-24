@@ -284,3 +284,46 @@ func TestExtractZip(t *testing.T) {
 		t.Fatal("zip slip not rejected")
 	}
 }
+
+func TestCheckClientVersion(t *testing.T) {
+	// Any system executable with a version resource stands in for Wow.exe
+	// (Wine's notepad.exe has none, its winver.exe/explorer.exe do).
+	var src, ver string
+	for _, name := range []string{"notepad.exe", "winver.exe", "explorer.exe", "regsvr32.exe"} {
+		p := filepath.Join(os.Getenv("WINDIR"), "System32", name)
+		if v, err := fileVersion(p); err == nil {
+			src, ver = p, v
+			break
+		}
+	}
+	if src == "" {
+		t.Skip("no system exe with version info found")
+	}
+	t.Logf("using %s (version %s)", src, ver)
+	dir := t.TempDir()
+	if err := checkClientVersion(dir, "Mop"); err != nil {
+		t.Fatalf("empty folder rejected: %v", err)
+	}
+	data, _ := os.ReadFile(src)
+	writeFile(t, filepath.Join(dir, "Wow.exe"), data)
+
+	orig := expectedClientVersion["Mop"]
+	t.Cleanup(func() { expectedClientVersion["Mop"] = orig })
+
+	expectedClientVersion["Mop"] = ver
+	if err := checkClientVersion(dir, "Mop"); err != nil {
+		t.Fatalf("matching version rejected: %v", err)
+	}
+	expectedClientVersion["Mop"] = "5.4.8"
+	if err := checkClientVersion(dir, "Mop"); err == nil || !strings.Contains(err.Error(), ver) {
+		t.Fatalf("wrong version accepted (exe is %s): %v", ver, err)
+	}
+
+	// An exe without a version resource is rejected, like the original.
+	self, _ := os.Executable()
+	data, _ = os.ReadFile(self)
+	writeFile(t, filepath.Join(dir, "Wow.exe"), data)
+	if err := checkClientVersion(dir, "Mop"); err == nil {
+		t.Fatal("exe without version info accepted")
+	}
+}
