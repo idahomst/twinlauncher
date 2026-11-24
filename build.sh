@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
-# build.sh — Install Go locally (no root) and cross-compile twinlauncher.exe
+# build.sh — cross-compile twinlauncher.exe (installs Go locally if needed, no root)
 #
 # Usage:  bash build.sh
 # Output: twinlauncher.exe  (copy it next to appsettings.json in your WoW bottle)
 
 set -e
 
-GO_VERSION="1.22.4"
+GO_VERSION="1.24.4"   # keep in sync with the toolchain line in go.mod
 GO_TARBALL="go${GO_VERSION}.linux-amd64.tar.gz"
 GO_URL="https://go.dev/dl/${GO_TARBALL}"
 GO_DIR="${HOME}/.local/go"
-GOPATH="${HOME}/.local/gopath"
 
-# ── 1. Install Go if not present ─────────────────────────────────────────────
-if [ ! -x "${GO_DIR}/bin/go" ]; then
+# ── 1. Find or install Go ────────────────────────────────────────────────────
+if command -v go &>/dev/null; then
+    GO=go
+elif [ -x "${GO_DIR}/bin/go" ]; then
+    GO="${GO_DIR}/bin/go"
+else
     echo ">>> Downloading Go ${GO_VERSION}..."
     TMP=$(mktemp -d)
     curl -fL "${GO_URL}" -o "${TMP}/${GO_TARBALL}"
@@ -21,28 +24,20 @@ if [ ! -x "${GO_DIR}/bin/go" ]; then
     mkdir -p "${HOME}/.local"
     tar -C "${HOME}/.local" -xzf "${TMP}/${GO_TARBALL}"
     rm -rf "${TMP}"
-    echo ">>> Go installed at ${GO_DIR}"
-else
-    echo ">>> Go already at ${GO_DIR}  ($("${GO_DIR}/bin/go" version))"
+    GO="${GO_DIR}/bin/go"
 fi
+echo ">>> Using $("${GO}" version)"
 
-export PATH="${GO_DIR}/bin:${PATH}"
-export GOPATH="${GOPATH}"
-
-# ── 2. Check for mingw-w64 (required for CGO cross-compilation) ───────────────
-if ! command -v x86_64-w64-mingw32-gcc &>/dev/null; then
-    echo "ERROR: x86_64-w64-mingw32-gcc not found."
-    echo "Install it with:  sudo apt install mingw-w64"
-    exit 1
-fi
-
-# ── 3. Cross-compile for Windows amd64 ───────────────────────────────────────
-echo ">>> Building twinlauncher.exe  (CGO + GOOS=windows GOARCH=amd64)..."
+# ── 2. Cross-compile for Windows amd64 (pure Go, no CGO / mingw needed) ──────
+# The application manifest (common controls v6, DPI awareness) is embedded
+# from rsrc_windows_amd64.syso. Regenerate it after editing twinlauncher.manifest:
+#   go run github.com/akavel/rsrc@v0.10.2 -manifest twinlauncher.manifest -arch amd64 -o rsrc_windows_amd64.syso
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 go build \
-    -ldflags="-s -w -H windowsgui" \
+echo ">>> Building twinlauncher.exe (GOOS=windows GOARCH=amd64)..."
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 "${GO}" build \
+    -trimpath -ldflags="-s -w -H windowsgui" \
     -o twinlauncher.exe \
     .
 
