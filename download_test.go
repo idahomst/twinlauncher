@@ -19,7 +19,24 @@ import (
 	"testing"
 )
 
-func init() { initHTTP() }
+func init() {
+	initHTTP()
+	exeDir = filepath.Join(os.TempDir(), "twinlauncher-test-nonexistent")
+	loadAppSettings()
+}
+
+// withSettings activates a modified copy of the built-in settings for one test.
+func withSettings(t *testing.T, mutate func(*AppConfig)) {
+	t.Helper()
+	orig := appCfg.Load()
+	c, err := parseAppConfig(defaultAppSettings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutate(c)
+	appCfg.Store(c)
+	t.Cleanup(func() { appCfg.Store(orig) })
+}
 
 func TestFileListWithBOM(t *testing.T) {
 	data := []byte("\xEF\xBB\xBF[{\"fileName\":\"Wow.exe\",\"md5\":\"abc\"}]")
@@ -198,8 +215,9 @@ func TestFailoverKeepsRange(t *testing.T) {
 	body := bytes.Repeat([]byte("abc"), 1000)
 	srv, ranges := fileServer(t, body, false, 0)
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
-	appCfg.AppSettings.DownloadSettings.DNSFailoverSettings = map[string]string{"cdn.invalid": "127.0.0.1"}
-	t.Cleanup(func() { appCfg.AppSettings.DownloadSettings.DNSFailoverSettings = nil })
+	withSettings(t, func(c *AppConfig) {
+		c.AppSettings.DownloadSettings.DNSFailoverSettings = map[string]string{"cdn.invalid": "127.0.0.1"}
+	})
 
 	dest := filepath.Join(t.TempDir(), "f")
 	writeFile(t, dest, body[:100])
@@ -216,8 +234,9 @@ func TestFailoverKeepsRange(t *testing.T) {
 }
 
 func TestFailoverURL(t *testing.T) {
-	appCfg.AppSettings.DownloadSettings.DNSFailoverSettings = map[string]string{"cdn.twinstar-wow.com": "176.9.18.199"}
-	t.Cleanup(func() { appCfg.AppSettings.DownloadSettings.DNSFailoverSettings = nil })
+	withSettings(t, func(c *AppConfig) {
+		c.AppSettings.DownloadSettings.DNSFailoverSettings = map[string]string{"cdn.twinstar-wow.com": "176.9.18.199"}
+	})
 	got, ok := failoverURL("https://cdn.twinstar-wow.com/15050.direct/Data/a.MPQ")
 	if !ok || got != "http://176.9.18.199/15050.direct/Data/a.MPQ" {
 		t.Fatalf("got %q %v", got, ok)

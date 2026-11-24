@@ -104,7 +104,7 @@ func failoverURL(rawURL string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	ip, ok := appCfg.AppSettings.DownloadSettings.DNSFailoverSettings[strings.ToLower(u.Hostname())]
+	ip, ok := settings().DownloadSettings.DNSFailoverSettings[strings.ToLower(u.Hostname())]
 	if !ok || ip == "" {
 		return "", false
 	}
@@ -478,7 +478,7 @@ func runUpdate(ctx context.Context, expansion, gameDir, mopLocale string) error 
 }
 
 func updateCata(ctx context.Context, gameDir string) error {
-	ds := appCfg.AppSettings.DownloadSettings
+	ds := settings().DownloadSettings
 
 	logLine("[1/2] Checking client files…")
 	clientErr := updateClientFiles(ctx, gameDir, ds.ClientCataAddress)
@@ -507,7 +507,7 @@ func updateCata(ctx context.Context, gameDir string) error {
 }
 
 func updateMop(ctx context.Context, gameDir, locale string) error {
-	ds := appCfg.AppSettings.DownloadSettings
+	ds := settings().DownloadSettings
 
 	logLine("[1/3] Checking client files…")
 	clientErr := updateClientFiles(ctx, gameDir, ds.ClientMopAddress)
@@ -554,7 +554,7 @@ func updateVanilla(ctx context.Context, gameDir string) error {
 		logLine("WoW.exe already present, skipping download.")
 		return nil
 	}
-	zipURL := appCfg.AppSettings.DownloadSettings.ClientVanillaAddress
+	zipURL := settings().DownloadSettings.ClientVanillaAddress
 	// Same temp file as the original launcher, so either can resume it.
 	tmpPath := filepath.Join(os.TempDir(), "TwinStar_vanilla_client.tmp")
 

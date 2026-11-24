@@ -22,18 +22,27 @@ Use the link above or the *Assets* of a release. Saving the file from the reposi
 - Patches `Config.wtf` and `realmlist.wtf` with the correct realmlist before launching
 - Launches the WoW client (`Wow-64.exe`, `Wow.exe`, or `WoW.exe`)
 - Saves your settings (expansion, paths, realmlist) between sessions
+- Keeps the TwinStar download settings current on its own (see below)
 
-Settings are stored in `twinlauncher_settings.json` next to the exe.
+Your settings are stored in `twinlauncher_settings.json` next to the exe.
+
+### TwinStar download settings
+
+The CDN addresses, manifests and realmlists come from `appsettings.json` of the official TwinStar Launcher. You don't need to provide it:
+
+- twinlauncher has a copy built in, so it works on its own.
+- On start and on every **Check & Update** it reads the current `appsettings.json` from the official launcher package (only a few KB of it, not the whole download) and caches it as `twinlauncher_appsettings.json` next to the exe.
+- If TwinStar can't be reached, the cached copy is used, then an `appsettings.json` next to the exe (if you have one from an older setup), then the built-in copy.
 
 ## Screenshot
 ![twinlauncher screenshot](https://github.com/idahomst/twinlauncher/blob/main/twinlauncher.png?raw=true)
 
 ## Setup
 
-Requirements: a 64-bit Wine bottle (Bottles, plain Wine, ...) or a Windows machine. No extra dependencies, fonts or .NET are needed.
+Requirements: a 64-bit Wine bottle (Bottles, plain Wine, ...) or a Windows machine. No extra dependencies, fonts or .NET are needed, and you don't need the official TwinStar Launcher.
 
 1. [Download `twinlauncher.exe`](https://github.com/idahomst/twinlauncher/releases/latest/download/twinlauncher.exe)
-2. Copy it into your bottle **next to** `appsettings.json` from the original [TwinStar Launcher](https://twinstar-wow.com/launcher/latest.zip) (the folder with `TwinStar Launcher.exe`, or copy just `appsettings.json` next to twinlauncher)
+2. Copy it anywhere into your bottle, e.g. `C:\Games\twinlauncher`
 3. Run `twinlauncher.exe` via Wine or Bottles
 4. Select your expansion (and for MoP the game language) and set the game path (Windows-style path, e.g. `C:\Games\WoW_Cata`)
 5. Click **Check & Update** to download/verify game files
@@ -70,7 +79,7 @@ GOOS=windows go test -exec wine .
 
 ### Releasing
 
-The exe is not committed to the repository; it is published as a release asset:
+The exe is not committed to the repository; it is published as a release asset. Before a release, you can refresh the built-in settings copy from the official launcher (`appsettings.default.json` = `appsettings.json` from <https://twinstar-wow.com/launcher/latest.zip>); running installs refresh it on their own anyway.
 
 ```bash
 bash build.sh

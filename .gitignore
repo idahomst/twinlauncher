@@ -2,5 +2,6 @@
 twinlauncher.exe
 SHA256SUMS.txt
 
-# Local user settings written next to the exe
+# Local files written next to the exe
 twinlauncher_settings.json
+twinlauncher_appsettings.json

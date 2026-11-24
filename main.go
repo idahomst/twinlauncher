@@ -16,36 +16,6 @@ import (
 	"github.com/lxn/walk"
 )
 
-// ── appsettings.json ─────────────────────────────────────────────────────────
-
-type AppConfig struct {
-	AppSettings AppSettings `json:"AppSettings"`
-}
-
-type AppSettings struct {
-	DownloadSettings           DownloadSettings           `json:"DownloadSettings"`
-	Realmlists                 []string                   `json:"Realmlists"`
-	ExpansionSelectionSettings ExpansionSelectionSettings `json:"ExpansionSelectionSettings"`
-}
-
-type DownloadSettings struct {
-	CataManifest         string            `json:"CataManifest"`
-	MopManifest          string            `json:"MopManifest"`
-	CDNCata              string            `json:"CDNCata"`
-	CDNMop               string            `json:"CDNMop"`
-	ClientCataAddress    string            `json:"ClientCataAddress"`
-	ClientMopAddress     string            `json:"ClientMopAddress"`
-	ClientVanillaAddress string            `json:"ClientVanillaAddress"`
-	MopPatchUrls         []string          `json:"MopPatchUrls"`
-	CataDefaultLocale    string            `json:"CataDefaultLocale"`
-	MopDefaultLocale     string            `json:"MopDefaultLocale"`
-	DNSFailoverSettings  map[string]string `json:"DNSFailoverSettings"`
-}
-
-type ExpansionSelectionSettings struct {
-	AvailableExpansions []string `json:"AvailableExpansions"`
-}
-
 // ── User settings (twinlauncher_settings.json) ───────────────────────────────
 
 type UserSettings struct {
@@ -83,7 +53,6 @@ var mopLocales = []struct{ Code, Name string }{
 // ── Globals ──────────────────────────────────────────────────────────────────
 
 var (
-	appCfg           AppConfig
 	userCfg          UserSettings
 	userSettingsPath string
 )
@@ -94,32 +63,21 @@ const userSettingsFile = "twinlauncher_settings.json"
 
 func main() {
 	exePath, _ := os.Executable()
-	exeDir := filepath.Dir(exePath)
-	appSettingsPath := filepath.Join(exeDir, "appsettings.json")
+	exeDir = filepath.Dir(exePath)
 	userSettingsPath = filepath.Join(exeDir, userSettingsFile)
 
 	initHTTP()
-
-	if err := loadAppSettings(appSettingsPath); err != nil {
-		msgBox("Fatal Error",
-			"Cannot load appsettings.json:\n"+err.Error()+
-				"\n\nMake sure twinlauncher.exe is in the same folder as appsettings.json.",
-			walk.MsgBoxIconError|walk.MsgBoxOK)
-		return
-	}
+	loadAppSettings()
 	loadUserSettings()
 
 	if userCfg.Expansion == "" {
 		userCfg.Expansion = "Mop" // same default as TwinStar Launcher 1.0.3
 	}
-	if userCfg.Realmlist == "" && len(appCfg.AppSettings.Realmlists) > 0 {
-		userCfg.Realmlist = appCfg.AppSettings.Realmlists[0]
+	if userCfg.Realmlist == "" {
+		userCfg.Realmlist = settings().Realmlists[0]
 	}
 	if userCfg.GameLocale == "" {
-		userCfg.GameLocale = appCfg.AppSettings.DownloadSettings.MopDefaultLocale
-		if userCfg.GameLocale == "" {
-			userCfg.GameLocale = "enUS"
-		}
+		userCfg.GameLocale = firstNonEmpty(settings().DownloadSettings.MopDefaultLocale, "enUS")
 	}
 
 	runGUI()
@@ -151,14 +109,6 @@ func setGamePath(p string) {
 }
 
 // ── Config I/O ───────────────────────────────────────────────────────────────
-
-func loadAppSettings(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(stripBOM(data), &appCfg)
-}
 
 func loadUserSettings() {
 	data, err := os.ReadFile(userSettingsPath)
