@@ -1,0 +1,6 @@
+# Build output: published as a GitHub release asset, not committed
+twinlauncher.exe
+SHA256SUMS.txt
+
+# Local user settings written next to the exe
+twinlauncher_settings.json
