@@ -249,7 +249,7 @@ func onBrowse() {
 }
 
 func onPickRealmlist() {
-	rls := appCfg.AppSettings.Realmlists
+	rls := settings().Realmlists
 	cur := -1
 	for i, rl := range rls {
 		if rl == leRL.Text() {
@@ -302,6 +302,7 @@ func onUpdate() {
 	appendLog(fmt.Sprintf("=== Update %s in %s ===", exp, gp))
 
 	go func() {
+		refreshSettings(ctx)
 		err := runUpdate(ctx, exp, gp, mopLocale)
 		cancelled := ctx.Err() != nil
 		mw.Synchronize(func() {
@@ -436,6 +437,9 @@ func runGUI() {
 	}
 	refreshExpansionUI()
 	mw.Closing().Attach(onClose)
+
+	appendLog("Download settings: " + settingsSource)
+	go refreshSettings(context.Background())
 
 	mw.Run()
 }
